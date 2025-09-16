@@ -3,7 +3,7 @@
 from fastapi import FastAPI, Path, HTTPException, Query
 from fastapi.responses import JSONResponse
 from utils import load_patients_data, save_data
-from models import Patient
+from models import Patient, PatientUpdate
 from typing import List, Dict
 
 app = FastAPI()
@@ -61,3 +61,39 @@ async def create_patient(patient: Patient):
     await save_data(patients_data)
     
     return JSONResponse(status_code=201, content={'message':'patient created successfully'})
+
+
+@app.put("/patients/{patient_id}")
+async def update_patient(patient_id: str, patient_update: PatientUpdate):
+    
+    if patient_id not in patients_data:
+        raise HTTPException(status_code=404, detail='Patient not found')
+    
+    
+    existing_patient = patients_data[patient_id]
+    updated_patient_info = patient_update.model_dump(exclude_unset=True)
+    print("old:",existing_patient)
+    for key,value in updated_patient_info.items():
+        existing_patient[key] = value
+    
+    existing_patient["id"] = patient_id
+    exisiting_patient_pydantic = Patient(**existing_patient)
+    
+    patients_data[patient_id] = exisiting_patient_pydantic.model_dump(exclude='id')
+    
+    await save_data(patients_data)
+    
+    return JSONResponse(status_code=200, content={'message':f'patient id:{patient_id} updated successfully'})
+
+@app.delete("/patients/{patient_id}")
+async def delete_patient(patient_id: str):
+    
+    if patient_id not in patients_data:
+        raise HTTPException(status_code=404, detail='Patient not found')
+    
+    del patients_data[patient_id]
+    
+    save_data(patients_data)
+    
+    return JSONResponse(status_code=200, content={'message':f'patient id:{patient_id} deleted successfully'})
+    
