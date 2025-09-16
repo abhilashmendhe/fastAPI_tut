@@ -1,11 +1,14 @@
 # Run -> $ uvicorn main:app --reload
 
 from fastapi import FastAPI, Path, HTTPException, Query
-from utils import load_patients_data
+from fastapi.responses import JSONResponse
+from utils import load_patients_data, save_data
+from models import Patient
+from typing import List, Dict
 
 app = FastAPI()
 
-patients_data = {} # Cache
+patients_data = load_patients_data() # Cache
 
 @app.get("/")
 async def hello_world():
@@ -17,8 +20,8 @@ async def about():
 
 @app.get("/patients")
 async def patients():
-    global patients_data
-    patients_data = await load_patients_data()
+    # global patients_data
+    # patients_data = await load_patients_data()
     return patients_data
 
 @app.get("/patients/sort")
@@ -47,3 +50,14 @@ async def get_one_patient(patient_id:str = Path(..., description='ID of the pati
     
     raise HTTPException(status_code=404, detail="Patient not found")
 
+@app.post("/patients")
+async def create_patient(patient: Patient):
+    
+    if patient.id in patients_data:
+        raise HTTPException(status_code=400, detail="Patient already exists")
+
+    patients_data[patient.id] = patient.model_dump(exclude=['id'])
+    
+    await save_data(patients_data)
+    
+    return JSONResponse(status_code=201, content={'message':'patient created successfully'})
